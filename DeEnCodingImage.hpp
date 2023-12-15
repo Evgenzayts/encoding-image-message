@@ -5,8 +5,7 @@
 #ifndef ENCODING_IMAGE_MESSAGE_DEENCODINGIMAGE_HPP
 #define ENCODING_IMAGE_MESSAGE_DEENCODINGIMAGE_HPP
 
-#define BMP_HEADER 54
-#define ENCODE_HEADER 62
+#define SIZE_HEADER 8
 
 #include <iostream>
 #include <fstream>
@@ -18,7 +17,8 @@ public:
     std::string messageInputPath;
     std::string messageOutputPath;
 private:
-    int messageSize;
+    uint dataAddress;
+    uint messageSize;
     std::string message;
     std::ifstream inputImage;
     std::ofstream outputImage;

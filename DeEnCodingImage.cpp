@@ -15,26 +15,25 @@ void DeEnCodingImage::decodeMessage(std::string &imageInputPath, std::string &me
         throw std::runtime_error("Не удалось открыть файл " + this->imageInputPath);
     std::string line;
     while(std::getline(inputImage, line)) {
-        imageString += line;
+        imageString.append(line);
     }
     inputImage.close();
 
-    int8_t symbol1 = 0;
-    for (int i = BMP_HEADER; i < ENCODE_HEADER; ++i) {
-        static int iter = 0;
-        symbol1 |= (imageString[i] & 1) << (7 - (iter % 8));
-        if (iter % 8 == 7 && i != BMP_HEADER) {
-            messageSize = (int)symbol1;
-            symbol1 = 0;
+    dataAddress = (uint)imageString[0x0A];
+
+    uint8_t symbol1 = 0;
+    for (uint i = dataAddress; i < dataAddress + SIZE_HEADER; ++i) {
+        symbol1 |= (imageString[i] & 1) << (7 - ((i - dataAddress) % 8));
+        if (((i - dataAddress) % 8 == 7) && (i != dataAddress)) {
+            messageSize = (uint8_t)symbol1;
         }
-        ++iter;
     }
 
-    int8_t symbol2 = 0;
-    for (int i = ENCODE_HEADER; i < ENCODE_HEADER + messageSize * 8; ++i) {
+    uint8_t symbol2 = 0;
+    for (uint i = dataAddress + SIZE_HEADER; i < dataAddress + SIZE_HEADER + messageSize * 8; ++i) {
         static int iter = 0;
-            symbol2 |= (imageString[i] & 1) << (7 - (iter % 8));
-        if (iter % 8 == 7 && i != ENCODE_HEADER) {
+        symbol2 |= (imageString[i] & 1) << (7 - (iter % 8));
+        if ((iter % 8 == 7) && (i != dataAddress + SIZE_HEADER)) {
             message.push_back((char)symbol2);
             symbol2 = 0;
         }
@@ -58,20 +57,22 @@ void DeEnCodingImage::encodeMessage(std::string& imageInputPath, std::string& im
         throw std::runtime_error("Не удалось открыть файл " + this->imageInputPath);
     std::string line;
     while(std::getline(inputImage, line)) {
-        imageString += line;
+        imageString.append(line);
     }
     inputImage.close();
 
+    dataAddress = (uint)imageString[0x0A];
+
     for (int i = 0; i < 8; ++i) {
-        int8_t symbol = (int8_t)messageSize;
+        uint8_t symbol = (uint8_t)messageSize;
         if (((symbol >> (7 - i)) & 1) == 1)
-            imageString[BMP_HEADER + i * 8 + i] |= 1;
+            imageString[dataAddress + i] |= 1;
         else
-            imageString[BMP_HEADER + i * 8 + i] &= 254;
+            imageString[dataAddress + i] &= 254;
     }
 
     for (int i = 0; i < messageSize; ++i) {
-        if ((ENCODE_HEADER + i * 8 + 8) < imageString.size()) {
+        if ((dataAddress + SIZE_HEADER + i * 8 + 8) >= imageString.size()) {
             messageSize =  i;
             break;
         }
@@ -79,9 +80,9 @@ void DeEnCodingImage::encodeMessage(std::string& imageInputPath, std::string& im
         char symbol = message.at(i);
         for (int j = 0; j < 8; ++j) {
             if (((symbol >> (7 - j)) & 1) == 1)
-                imageString[ENCODE_HEADER + i * 8 + j] |= 1;
+                imageString[dataAddress + SIZE_HEADER + i * 8 + j] |= 1;
             else
-                imageString[ENCODE_HEADER + i * 8 + j] &= 254;
+                imageString[dataAddress + SIZE_HEADER + i * 8 + j] &= 254;
         }
     }
 
@@ -93,7 +94,6 @@ void DeEnCodingImage::encodeMessage(std::string& imageInputPath, std::string& im
 }
 
 void DeEnCodingImage::readMessage() {
-    messageSize = (int)message.size();
     std::ifstream file(messageInputPath);
     if (!file.is_open())
         throw std::runtime_error("Не удалось открыть файл " + messageInputPath);
@@ -102,6 +102,7 @@ void DeEnCodingImage::readMessage() {
         message.append(line);
     }
     file.close();
+    messageSize = (uint)message.size();
 }
 
 void DeEnCodingImage::writeMessage() {
